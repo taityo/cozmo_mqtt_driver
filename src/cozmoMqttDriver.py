@@ -8,6 +8,8 @@ class CozmoDriver:
   def __init__(self, robot, host='localhost', port=1883):
 
     self.robot = robot
+    self.host = host
+    self.port = port
 
     #### Subscriber
     self.lift_sub = mqtt.Client()
@@ -16,23 +18,31 @@ class CozmoDriver:
     self.lift_sub.on_connect = self.on_connect_lift
     self.lift_sub.on_message = self.on_message_lift
 
+
+    #### Publisher
+    self.lift_pub = mqtt.Client() 
+
+
+  def run(self):
+    ### Subscriber
+
     # connection
-    self.lift_sub.connect_async(host, port, keepalive=60)
+    self.lift_sub.connect_async(self.host, self.port, keepalive=60)
     
     # loop_start
     self.lift_sub.loop_start()
 
 
-    #### Publisher
-    self.lift_pub = mqtt.Client() 
+    ### Publisher
 
     # connection
-    self.lift_pub.connect_async(host, port, keepalive=60)
+    self.lift_pub.connect_async(self.host, self.port, keepalive=60)
     
     # loop_start
     self.lift_pub.loop_start()
 
-  def run(self):
+
+    ### run
     while True:
       self.publish_lift()
 
