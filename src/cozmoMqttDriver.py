@@ -1,6 +1,7 @@
 import cozmo
 import paho.mqtt.client as mqtt
 import time
+import json
 
 class CozmoDriver:
 
@@ -12,8 +13,8 @@ class CozmoDriver:
     self.lift_sub = mqtt.Client()
     
     # callback function
-    self.lift_sub.on_connect = self.lift_on_connect
-    self.lift_sub.on_message = self.lift_on_message
+    self.lift_sub.on_connect = self.on_connect_lift
+    self.lift_sub.on_message = self.on_message_lift
 
     # connection
     self.lift_sub.connect_async(host, port, keepalive=60)
@@ -25,9 +26,6 @@ class CozmoDriver:
     #### Publisher
     self.lift_pub = mqtt.Client() 
 
-    # callback function
-    self.lift_pub.on_publish = self.lift_on_publish
-
     # connection
     self.lift_pub.connect_async(host, port, keepalive=60)
     
@@ -36,26 +34,39 @@ class CozmoDriver:
 
   def run(self):
     while True:
-      self.lift_pub.publish('/lift_pos', 'lift_pos_test')
+      self.publish_lift()
 
       time.sleep(0.05)
 
 
   ### Subscriber Callback Function
 
-  def lift_on_connect(self, client, userdate, flags, respons_code):
+  def on_connect_lift(self, client, userdate, flags, respons_code):
     self.lift_sub.subscribe('/move_lift')
     print('Connected lift_sub !!')
 
-  def lift_on_message(self, client, userdata, msg):
+  def on_message_lift(self, client, userdata, msg):
     print('Subscribed lift_sub !!')
 
+    move_lift = json.loads(msg.payload)
+    self.robot.move_lift(move_lift['speed'])
+    print(move_lift)
 
-  ### Publisher Callback Function
 
-  def lift_on_publish(self, client, userdata, msg):
+  ### Publisher Function
+
+  def publish_lift(self):
+    pos = self.robot.lift_position
+
+    lift_pos = {
+      'angle': pos.angle.radians,
+      'height': pos.height.distance_mm,
+      'ratio': pos.ratio
+    }
+
+    # dict -> str on json & publish
+    self.lift_pub.publish('/lift_pos', json.dumps(lift_pos))
     print('Publish lift_pub !!')
-
 
 
 import asyncio
