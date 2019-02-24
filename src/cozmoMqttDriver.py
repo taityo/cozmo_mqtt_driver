@@ -12,54 +12,58 @@ class CozmoDriver:
     self.port = port
 
     #### Subscriber
+
+    # lift subscriber
     self.lift_sub = mqtt.Client()
-    self.head_sub = mqtt.Client()
-    
-    # callback function
     self.lift_sub.on_connect = self.on_connect_lift
     self.lift_sub.on_message = self.on_message_lift
+
+    # head subscriber
+    self.head_sub = mqtt.Client()
     self.head_sub.on_connect = self.on_connect_head
     self.head_sub.on_message = self.on_message_head
 
 
     #### Publisher
-    self.lift_pub = mqtt.Client() 
-    self.head_pub = mqtt.Client() 
+
+    self.lift_pub = mqtt.Client() # lift publisher
+    self.head_pub = mqtt.Client() # head publisher
 
 
   def run(self):
     ### Subscriber
 
-    # connection
+    # lift subscriber
     self.lift_sub.connect_async(self.host, self.port, keepalive=60)
-    self.head_sub.connect_async(self.host, self.port, keepalive=60)
-    
-    # loop_start
     self.lift_sub.loop_start()
+
+    # head subscriber
+    self.head_sub.connect_async(self.host, self.port, keepalive=60)
     self.head_sub.loop_start()
 
 
     ### Publisher
 
-    # connection
+    # lift publisher
     self.lift_pub.connect_async(self.host, self.port, keepalive=60)
-    self.head_pub.connect_async(self.host, self.port, keepalive=60)
-    
-    # loop_start
     self.lift_pub.loop_start()
+
+    # head publisher
+    self.head_pub.connect_async(self.host, self.port, keepalive=60)
     self.head_pub.loop_start()
 
 
     ### run
     while True:
-      self.publish_lift()
-      self.publish_head()
+      self.publish_lift() # lift publish
+      self.publish_head() # head publish
 
       time.sleep(0.05)
 
 
   ### Subscriber Callback Function
 
+  # lift function
   def on_connect_lift(self, client, userdate, flags, respons_code):
     self.lift_sub.subscribe('/move_lift')
     print('Connected lift_sub !!')
@@ -70,6 +74,7 @@ class CozmoDriver:
     move_lift = json.loads(msg.payload)
     self.robot.move_lift(move_lift['speed'])
 
+  # head function
   def on_connect_head(self, client, userdate, flags, respons_code):
     self.head_sub.subscribe('/move_head')
     print('Connected head_sub !!')
