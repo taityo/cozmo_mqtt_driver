@@ -13,14 +13,18 @@ class CozmoDriver:
 
     #### Subscriber
     self.lift_sub = mqtt.Client()
+    self.head_sub = mqtt.Client()
     
     # callback function
     self.lift_sub.on_connect = self.on_connect_lift
     self.lift_sub.on_message = self.on_message_lift
+    self.head_sub.on_connect = self.on_connect_head
+    self.head_sub.on_message = self.on_message_head
 
 
     #### Publisher
     self.lift_pub = mqtt.Client() 
+    self.head_pub = mqtt.Client() 
 
 
   def run(self):
@@ -28,23 +32,28 @@ class CozmoDriver:
 
     # connection
     self.lift_sub.connect_async(self.host, self.port, keepalive=60)
+    self.head_sub.connect_async(self.host, self.port, keepalive=60)
     
     # loop_start
     self.lift_sub.loop_start()
+    self.head_sub.loop_start()
 
 
     ### Publisher
 
     # connection
     self.lift_pub.connect_async(self.host, self.port, keepalive=60)
+    self.head_pub.connect_async(self.host, self.port, keepalive=60)
     
     # loop_start
     self.lift_pub.loop_start()
+    self.head_pub.loop_start()
 
 
     ### run
     while True:
       self.publish_lift()
+      self.publish_head()
 
       time.sleep(0.05)
 
@@ -60,7 +69,17 @@ class CozmoDriver:
 
     move_lift = json.loads(msg.payload)
     self.robot.move_lift(move_lift['speed'])
-    print(move_lift)
+
+  def on_connect_head(self, client, userdate, flags, respons_code):
+    self.head_sub.subscribe('/move_head')
+    print('Connected head_sub !!')
+
+  def on_message_head(self, client, userdata, msg):
+    print('Subscribed head_sub !!')
+
+    move_head = json.loads(msg.payload)
+    self.robot.move_head(move_head['speed'])
+    #print(move_head)
 
 
   ### Publisher Function
@@ -77,6 +96,16 @@ class CozmoDriver:
     # dict -> str on json & publish
     self.lift_pub.publish('/lift_pos', json.dumps(lift_pos))
     print('Publish lift_pub !!')
+
+  def publish_head(self):
+
+    head_angle = {
+      'angle': self.robot.head_angle.radians
+    }
+
+    # dict -> str on json & publish
+    self.head_pub.publish('/head_angle', json.dumps(head_angle))
+    print('Publish head_angle !!')
 
 
 import asyncio
