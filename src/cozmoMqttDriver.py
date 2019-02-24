@@ -1,7 +1,10 @@
-import cozmo
-import paho.mqtt.client as mqtt
 import time
 import json
+import base64
+
+import cozmo
+import paho.mqtt.client as mqtt
+from PIL import Image
 
 class CozmoDriver:
 
@@ -11,6 +14,11 @@ class CozmoDriver:
     self.host = host
     self.port = port
     self.saying_now = None
+  
+    # robot config
+    self.robot.camera.image_stream_enabled = True
+    self.robot.camera.color_image_enabled = True
+    time.sleep(1) # 消すかも
 
     #### Subscriber
 
@@ -35,6 +43,7 @@ class CozmoDriver:
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
     self.saytext_pub = mqtt.Client() # saytext publisher
+    self.camera_pub = mqtt.Client() # camera publisher
 
 
   def run(self):
@@ -67,11 +76,16 @@ class CozmoDriver:
     self.saytext_pub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_pub.loop_start()
 
+    # camera publisher
+    self.camera_pub.connect_async(self.host, self.port, keepalive=60)
+    self.camera_pub.loop_start()
+
     ### run
     while True:
       self.publish_lift() # lift publish
       self.publish_head() # head publish
       self.publish_say_text() # say_text publish
+      self.publish_camera() # camera publish
 
       time.sleep(0.05)
 
@@ -110,7 +124,6 @@ class CozmoDriver:
     print('Subscribed saytext_sub !!')
 
     say_text = json.loads(msg.payload)
-    print(say_text)
     self.robot.set_robot_volume(say_text['volume'])
     self.saying_now = self.robot.say_text(say_text['text'])
 
@@ -142,16 +155,36 @@ class CozmoDriver:
 
   def publish_say_text(self):
 
+    say_text = {
+      'saying_now': False
+    }
+
     if self.saying_now != None:
-
       saying_now = self.saying_now.state == "action_running"
-      say_text = {
-        'saying_now': saying_now
-      }
+      say_text['saying_now'] = saying_now
 
-      # dict -> str on json & publish
-      self.saytext_pub.publish('/saying_now', json.dumps(say_text))
+    # dict -> str on json & publish
+    self.saytext_pub.publish('/saying_now', json.dumps(say_text))
     print('Publish say_text !!')
+
+  def publish_camera(self):
+
+    ### image encode
+    pil_img = self.robot.world.latest_image.raw_image
+    # pil -> bainary
+    bainary_img = pil_img.tobytes()
+    # bainary -> base64
+    bai2b64_img = base64.b64encode(bainary_img)
+    # base64(bytes) -> str
+    raw_image = bai2b64_img.decode('utf-8')
+
+    camera_image = {
+      'raw_image': raw_image
+    }
+
+    # dict -> str on json & publish
+    self.camera_pub.publish('/camera_image', json.dumps(camera_image))
+    print('Publish camera !!')
 
 
 import asyncio

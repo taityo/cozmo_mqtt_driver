@@ -1,6 +1,8 @@
 import json
 import time
+import base64
 
+from PIL import Image
 import paho.mqtt.client as mqtt
 
 
@@ -14,9 +16,10 @@ class CozmoClient:
     self.callback_lift = None
     self.callback_head = None
     self.callback_saytext = None
+    self.callback_camera = None
 
     ### Subscriber
-
+    
     # lift subscriber
     self.lift_sub = mqtt.Client()
     self.lift_sub.on_connect = self.on_connect_lift
@@ -26,21 +29,26 @@ class CozmoClient:
     self.head_sub = mqtt.Client()
     self.head_sub.on_connect = self.on_connect_head
     self.head_sub.on_message = self.on_message_head
-
+    
     # say_text subscriber
     self.saytext_sub = mqtt.Client()
     self.saytext_sub.on_connect = self.on_connect_saytext
     self.saytext_sub.on_message = self.on_message_saytext
+     
+    # camera subscriber
+    self.camera_sub = mqtt.Client()
+    self.camera_sub.on_connect = self.on_connect_camera
+    self.camera_sub.on_message = self.on_message_camera
+  
  
-   
     ### Publisher
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
     self.saytext_pub = mqtt.Client() # saytext publisher
-
+    
   def run(self):
     ### Subscriber
-    
+     
     # lift subscriber
     self.lift_sub.connect_async(self.host, self.port, keepalive=60)
     self.lift_sub.loop_start()
@@ -48,10 +56,14 @@ class CozmoClient:
     # head subscriber
     self.head_sub.connect_async(self.host, self.port, keepalive=60)
     self.head_sub.loop_start()
-    
+     
     # say_text subscriber
     self.saytext_sub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_sub.loop_start()
+    
+    # camera subscriber
+    self.camera_sub.connect_async(self.host, self.port, keepalive=60)
+    self.camera_sub.loop_start()
 
 
     ### Publisher
@@ -67,7 +79,7 @@ class CozmoClient:
     # saytext publisher
     self.saytext_pub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_pub.loop_start()
-
+    
   ### Subscriber Callback Function
 
   # lift function
@@ -106,6 +118,30 @@ class CozmoClient:
     if self.callback_saytext != None:
       self.callback_saytext(say_text)
 
+  # camera function
+  def on_connect_camera(self, client, userdate, flags, respons_code):
+    self.camera_sub.subscribe('/camera_image')
+    print('Connected camera !!')
+
+  def on_message_camera(self, client, userdata, msg):
+
+    camera_image = json.loads(msg.payload)
+
+    ### Image Decode
+   
+    raw_image = camera_image['raw_image']
+    # str -> base64
+    bai_image = raw_image.encode('utf-8')
+    # base64 -> bainary
+    b642bai_img = base64.b64decode(bai_image)
+    # bainary -> pil
+    pil_img = Image.frombytes('RGB', (320,240), b642bai_img)
+    #pil_img.show()
+
+    if self.callback_camera != None:
+      self.callback_camera(pil_img)
+
+    print('Subscribed camera_sub !!')
 
   ### Publisher Function
  
@@ -154,12 +190,13 @@ if __name__ == '__main__':
   cozmo_client = CozmoClient()
   
   # callback function
-  cozmo_client.callback_saytext = func
+  cozmo_client.callback_camera = func
+  #cozmo_client.callback_saytext = func
 
   cozmo_client.run()
   while True:
-    cozmo_client.publish_say_text("this is test")
-    i = i + num
+    #cozmo_client.publish_say_text("this is test")
+    i = i + 1
     print('i :' + str(i))
 
     time.sleep(1)
