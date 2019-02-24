@@ -29,6 +29,7 @@ class CozmoClient:
     ### Publisher
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
+    self.saytext_pub = mqtt.Client() # saytext publisher
 
   def run(self):
     ### Subscriber
@@ -52,6 +53,9 @@ class CozmoClient:
     self.head_pub.connect_async(self.host, self.port, keepalive=60)
     self.head_pub.loop_start()
 
+    # saytext publisher
+    self.saytext_pub.connect_async(self.host, self.port, keepalive=60)
+    self.saytext_pub.loop_start()
 
   ### Subscriber Callback Function
 
@@ -102,8 +106,19 @@ class CozmoClient:
     self.head_pub.publish('/move_head', json.dumps(move_head))
     print('Publish head_pub')
 
+  def publish_say_text(self, text, volume=1):
+    
+    say_text = {
+      'text': text,
+      'volume': volume
+    }
+    
+    # dict -> str on json & publish
+    self.head_pub.publish('/say_text', json.dumps(say_text))
+    print('Publish head_pub')
 
-num = 1
+
+num = 0.1
 i = 0
 
 def func(p):
@@ -122,12 +137,11 @@ if __name__ == '__main__':
 
   cozmo_client.run()
   while True:
-    cozmo_client.publish_move_head(i)
-    cozmo_client.publish_move_lift(i)
+    cozmo_client.publish_say_text("this is test")
     i = i + num
     print('i :' + str(i))
 
-    time.sleep(0.05)
+    time.sleep(1)
 
 
 

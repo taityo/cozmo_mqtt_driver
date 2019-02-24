@@ -23,6 +23,11 @@ class CozmoDriver:
     self.head_sub.on_connect = self.on_connect_head
     self.head_sub.on_message = self.on_message_head
 
+    # say_text subscriber
+    self.saytext_sub = mqtt.Client()
+    self.saytext_sub.on_connect = self.on_connect_saytext
+    self.saytext_sub.on_message = self.on_message_saytext
+
 
     #### Publisher
 
@@ -40,6 +45,10 @@ class CozmoDriver:
     # head subscriber
     self.head_sub.connect_async(self.host, self.port, keepalive=60)
     self.head_sub.loop_start()
+
+    # say_text subscriber
+    self.saytext_sub.connect_async(self.host, self.port, keepalive=60)
+    self.saytext_sub.loop_start()
 
 
     ### Publisher
@@ -85,6 +94,19 @@ class CozmoDriver:
     move_head = json.loads(msg.payload)
     self.robot.move_head(move_head['speed'])
     #print(move_head)
+
+  # saytext function
+  def on_connect_saytext(self, client, userdate, flags, respons_code):
+    self.saytext_sub.subscribe('/say_text')
+    print('Connected saytext_sub !!')
+
+  def on_message_saytext(self, client, userdata, msg):
+    print('Subscribed saytext_sub !!')
+
+    say_text = json.loads(msg.payload)
+    print(say_text)
+    self.robot.set_robot_volume(say_text['volume'])
+    self.robot.say_text(say_text['text'])
 
 
   ### Publisher Function
