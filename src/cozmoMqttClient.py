@@ -13,6 +13,7 @@ class CozmoClient:
     # callback valiable
     self.callback_lift = None
     self.callback_head = None
+    self.callback_saytext = None
 
     ### Subscriber
 
@@ -25,7 +26,13 @@ class CozmoClient:
     self.head_sub = mqtt.Client()
     self.head_sub.on_connect = self.on_connect_head
     self.head_sub.on_message = self.on_message_head
-    
+
+    # say_text subscriber
+    self.saytext_sub = mqtt.Client()
+    self.saytext_sub.on_connect = self.on_connect_saytext
+    self.saytext_sub.on_message = self.on_message_saytext
+ 
+   
     ### Publisher
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
@@ -42,6 +49,10 @@ class CozmoClient:
     self.head_sub.connect_async(self.host, self.port, keepalive=60)
     self.head_sub.loop_start()
     
+    # say_text subscriber
+    self.saytext_sub.connect_async(self.host, self.port, keepalive=60)
+    self.saytext_sub.loop_start()
+
 
     ### Publisher
 
@@ -83,6 +94,18 @@ class CozmoClient:
     if self.callback_head != None:
       self.callback_head(head_angle)
 
+  # saytext function
+  def on_connect_saytext(self, client, userdate, flags, respons_code):
+    self.saytext_sub.subscribe('/saying_now')
+    print('Connected saytext !!')
+
+  def on_message_saytext(self, client, userdata, msg):
+    print('Subscribed saytext_sub !!')
+
+    say_text = json.loads(msg.payload)
+    if self.callback_saytext != None:
+      self.callback_saytext(say_text)
+
 
   ### Publisher Function
  
@@ -115,7 +138,7 @@ class CozmoClient:
     
     # dict -> str on json & publish
     self.head_pub.publish('/say_text', json.dumps(say_text))
-    print('Publish head_pub')
+    print('Publish saytext_pub')
 
 
 num = 0.1
@@ -131,9 +154,7 @@ if __name__ == '__main__':
   cozmo_client = CozmoClient()
   
   # callback function
-  cozmo_client.callback_lift = func
-  cozmo_client.callback_head = func
-
+  cozmo_client.callback_saytext = func
 
   cozmo_client.run()
   while True:

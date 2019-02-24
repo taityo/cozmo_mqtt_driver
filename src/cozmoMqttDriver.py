@@ -10,6 +10,7 @@ class CozmoDriver:
     self.robot = robot
     self.host = host
     self.port = port
+    self.saying_now = None
 
     #### Subscriber
 
@@ -33,6 +34,7 @@ class CozmoDriver:
 
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
+    self.saytext_pub = mqtt.Client() # saytext publisher
 
 
   def run(self):
@@ -61,11 +63,15 @@ class CozmoDriver:
     self.head_pub.connect_async(self.host, self.port, keepalive=60)
     self.head_pub.loop_start()
 
+    # saytext publisher
+    self.saytext_pub.connect_async(self.host, self.port, keepalive=60)
+    self.saytext_pub.loop_start()
 
     ### run
     while True:
       self.publish_lift() # lift publish
       self.publish_head() # head publish
+      self.publish_say_text() # say_text publish
 
       time.sleep(0.05)
 
@@ -106,7 +112,7 @@ class CozmoDriver:
     say_text = json.loads(msg.payload)
     print(say_text)
     self.robot.set_robot_volume(say_text['volume'])
-    self.robot.say_text(say_text['text'])
+    self.saying_now = self.robot.say_text(say_text['text'])
 
 
   ### Publisher Function
@@ -133,6 +139,19 @@ class CozmoDriver:
     # dict -> str on json & publish
     self.head_pub.publish('/head_angle', json.dumps(head_angle))
     print('Publish head_angle !!')
+
+  def publish_say_text(self):
+
+    if self.saying_now != None:
+
+      saying_now = self.saying_now.state == "action_running"
+      say_text = {
+        'saying_now': saying_now
+      }
+
+      # dict -> str on json & publish
+      self.saytext_pub.publish('/saying_now', json.dumps(say_text))
+    print('Publish say_text !!')
 
 
 import asyncio
