@@ -17,6 +17,7 @@ class CozmoClient:
     self.callback_head = None
     self.callback_saytext = None
     self.callback_camera = None
+    self.callback_odom = None
 
     ### Subscriber
     
@@ -40,11 +41,17 @@ class CozmoClient:
     self.camera_sub.on_connect = self.on_connect_camera
     self.camera_sub.on_message = self.on_message_camera
   
+    # odom subscriber
+    self.odom_sub = mqtt.Client()
+    self.odom_sub.on_connect = self.on_connect_odom
+    self.odom_sub.on_message = self.on_message_odom
+
  
     ### Publisher
     self.lift_pub = mqtt.Client() # lift publisher
     self.head_pub = mqtt.Client() # head publisher
     self.saytext_pub = mqtt.Client() # saytext publisher
+    self.cmd_vel_pub = mqtt.Client() # cmd_vel publisher
     
   def run(self):
     ### Subscriber
@@ -65,6 +72,9 @@ class CozmoClient:
     self.camera_sub.connect_async(self.host, self.port, keepalive=60)
     self.camera_sub.loop_start()
 
+    # odom subscriber
+    self.odom_sub.connect_async(self.host, self.port, keepalive=60)
+    self.odom_sub.loop_start()
 
     ### Publisher
 
@@ -80,6 +90,11 @@ class CozmoClient:
     self.saytext_pub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_pub.loop_start()
     
+    # cmd_vel publisher
+    self.cmd_vel_pub.connect_async(self.host, self.port, keepalive=60)
+    self.cmd_vel_pub.loop_start()
+
+
   ### Subscriber Callback Function
 
   # lift function
@@ -143,6 +158,19 @@ class CozmoClient:
 
     print('Subscribed camera_sub !!')
 
+  # odom function
+  def on_connect_odom(self, client, userdate, flags, respons_code):
+    self.odom_sub.subscribe('/odom')
+    print('Connected odom !!')
+
+  def on_message_odom(self, client, userdata, msg):
+    print('Subscribed odom_sub !!')
+
+    odom = json.loads(msg.payload)
+    self.callback_odom(odom)
+
+
+
   ### Publisher Function
  
   def publish_move_lift(self, speed):
@@ -176,6 +204,17 @@ class CozmoClient:
     self.head_pub.publish('/say_text', json.dumps(say_text))
     print('Publish saytext_pub')
 
+  def publish_cmd_vel(self, lin_x, lin_y, lin_z, ang_x, ang_y, ang_z):
+    
+    cmd_vel = {
+      'linear': { 'x': lin_x, 'y': lin_y, 'z': lin_z },
+      'angular': { 'x': ang_x, 'y': ang_y, 'z': ang_z}
+    }
+    
+    # dict -> str on json & publish
+    self.head_pub.publish('/cmd_vel', json.dumps(cmd_vel))
+    print('Publish cmd_vel_pub')
+
 
 num = 0.1
 i = 0
@@ -190,17 +229,16 @@ if __name__ == '__main__':
   cozmo_client = CozmoClient()
   
   # callback function
-  cozmo_client.callback_camera = func
+  cozmo_client.callback_odom = func
   #cozmo_client.callback_saytext = func
 
   cozmo_client.run()
   while True:
-    #cozmo_client.publish_say_text("this is test")
+    cozmo_client.publish_cmd_vel(1,0,0,0,0,1)
     i = i + 1
     print('i :' + str(i))
 
     time.sleep(1)
-
 
 
 

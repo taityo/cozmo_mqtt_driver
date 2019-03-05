@@ -37,6 +37,11 @@ class CozmoDriver:
     self.saytext_sub.on_connect = self.on_connect_saytext
     self.saytext_sub.on_message = self.on_message_saytext
 
+    # cmd_vel subscriber
+    self.cmd_vel_sub = mqtt.Client()
+    self.cmd_vel_sub.on_connect = self.on_connect_cmd_vel
+    self.cmd_vel_sub.on_message = self.on_message_cmd_vel
+
 
     #### Publisher
 
@@ -44,6 +49,7 @@ class CozmoDriver:
     self.head_pub = mqtt.Client() # head publisher
     self.saytext_pub = mqtt.Client() # saytext publisher
     self.camera_pub = mqtt.Client() # camera publisher
+    self.odom_pub = mqtt.Client() # odom publisher
 
 
   def run(self):
@@ -60,6 +66,10 @@ class CozmoDriver:
     # say_text subscriber
     self.saytext_sub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_sub.loop_start()
+
+    # cmd_vel subscriber
+    self.cmd_vel_sub.connect_async(self.host, self.port, keepalive=60)
+    self.cmd_vel_sub.loop_start()
 
 
     ### Publisher
@@ -80,12 +90,17 @@ class CozmoDriver:
     self.camera_pub.connect_async(self.host, self.port, keepalive=60)
     self.camera_pub.loop_start()
 
+    # odom publisher
+    self.odom_pub.connect_async(self.host, self.port, keepalive=60)
+    self.odom_pub.loop_start()
+
     ### run
     while True:
       self.publish_lift() # lift publish
       self.publish_head() # head publish
       self.publish_say_text() # say_text publish
       self.publish_camera() # camera publish
+      self.publish_odom() # odom publish
 
       time.sleep(0.05)
 
@@ -126,6 +141,17 @@ class CozmoDriver:
     say_text = json.loads(msg.payload)
     self.robot.set_robot_volume(say_text['volume'])
     self.saying_now = self.robot.say_text(say_text['text'])
+
+  # cmd_vel function
+  def on_connect_cmd_vel(self, client, userdate, flags, respons_code):
+    self.cmd_vel_sub.subscribe('/cmd_vel')
+    print('Connected cmd_vel_sub !!')
+
+  def on_message_cmd_vel(self, client, userdata, msg):
+    print('Subscribed cmd_vel_sub !!')
+
+    cmd_vel = json.loads(msg.payload)
+    print(cmd_vel)
 
 
   ### Publisher Function
@@ -185,6 +211,24 @@ class CozmoDriver:
     # dict -> str on json & publish
     self.camera_pub.publish('/camera_image', json.dumps(camera_image))
     print('Publish camera !!')
+
+  def publish_odom(self):
+
+    odom = {
+      'timestamp': 0,
+      'pose': {
+        'position': {},
+        'orientation': {}
+      },
+      'twist': {
+        'linear': {},
+        'angular': {}
+      }
+    }
+
+    # dict -> str on json & publish
+    self.odom_pub.publish('/odom', json.dumps(odom))
+    print('Publish Odometry !!')
 
 
 import asyncio
