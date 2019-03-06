@@ -235,25 +235,25 @@ class CozmoDriver:
     
     # set pose and orient
     pose = self.robot.pose.position
-    orient = self.robot.pose_angle.radians
+    orient = self.robot.pose.rotation.angle_z.radians
     linear = 0
     angular = 0
+    m = 1000.0
 
     if self.cmd_vel != None:
       # 現在の直進速度と回転速度を計算
-      delta_pose = self.last_pose - self.robot.pose
+      delta_pose = self.robot.pose - self.last_pose
       dist = np.sqrt(delta_pose.position.x**2
                      + delta_pose.position.y**2
-                     + delta_pose.position.z**2) / 1000.0
+                     + delta_pose.position.z**2) / m
     
       linear = dist * update_rate * np.sign(self.cmd_vel['linear']['x'])
-      angular = -delta_pose.rotation.angle_z.radians * update_rate
-      # 本当にpose.rotation？
+      angular = delta_pose.rotation.angle_z.radians * update_rate
 
     odom = {
       'timestamp': time.time(),
       'pose': {
-        'position': {'x': pose.x, 'y': pose.y, 'z': pose.z},
+        'position': {'x': pose.x/m, 'y': pose.y/m, 'z': pose.z/m},
         'orientation': {'x': 0, 'y': 0, 'z': orient}
       },
       'twist': {

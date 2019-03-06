@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
   cozmo_client.run()
   while True:
-    cozmo_client.publish_cmd_vel(0.2,4)
+    cozmo_client.publish_cmd_vel(0.2,0)
 
     time.sleep(1)
 
