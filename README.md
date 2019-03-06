@@ -1,4 +1,4 @@
 # cozmo_mqtt_driver
 
 mqttを通してcozmoを操作できるライブラリ
-
+遠隔にpcからcozmoを操作する事ができる
