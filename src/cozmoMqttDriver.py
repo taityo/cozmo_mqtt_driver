@@ -4,7 +4,10 @@ import base64
 
 import cozmo
 import paho.mqtt.client as mqtt
+import numpy as np
+
 from PIL import Image
+from cozmo.util import Pose
 
 class CozmoDriver:
 
@@ -14,6 +17,9 @@ class CozmoDriver:
     self.host = host
     self.port = port
     self.saying_now = None
+    self.cmd_vel = None
+    self.wheel = None
+    self.last_pose = self.robot.pose
   
     # robot config
     self.robot.camera.image_stream_enabled = True
@@ -37,6 +43,11 @@ class CozmoDriver:
     self.saytext_sub.on_connect = self.on_connect_saytext
     self.saytext_sub.on_message = self.on_message_saytext
 
+    # cmd_vel subscriber
+    self.cmd_vel_sub = mqtt.Client()
+    self.cmd_vel_sub.on_connect = self.on_connect_cmd_vel
+    self.cmd_vel_sub.on_message = self.on_message_cmd_vel
+
 
     #### Publisher
 
@@ -44,9 +55,10 @@ class CozmoDriver:
     self.head_pub = mqtt.Client() # head publisher
     self.saytext_pub = mqtt.Client() # saytext publisher
     self.camera_pub = mqtt.Client() # camera publisher
+    self.odom_pub = mqtt.Client() # odom publisher
 
 
-  def run(self):
+  def run(self, update_rate):
     ### Subscriber
 
     # lift subscriber
@@ -60,6 +72,10 @@ class CozmoDriver:
     # say_text subscriber
     self.saytext_sub.connect_async(self.host, self.port, keepalive=60)
     self.saytext_sub.loop_start()
+
+    # cmd_vel subscriber
+    self.cmd_vel_sub.connect_async(self.host, self.port, keepalive=60)
+    self.cmd_vel_sub.loop_start()
 
 
     ### Publisher
@@ -80,14 +96,22 @@ class CozmoDriver:
     self.camera_pub.connect_async(self.host, self.port, keepalive=60)
     self.camera_pub.loop_start()
 
+    # odom publisher
+    self.odom_pub.connect_async(self.host, self.port, keepalive=60)
+    self.odom_pub.loop_start()
+
     ### run
     while True:
       self.publish_lift() # lift publish
       self.publish_head() # head publish
       self.publish_say_text() # say_text publish
       self.publish_camera() # camera publish
+      self.publish_odom(update_rate) # odom publish
 
-      time.sleep(0.05)
+      if self.wheel != None:
+        self.robot.drive_wheels(self.wheel['lv'], self.wheel['rv'])
+
+      time.sleep(1.0/update_rate)
 
 
   ### Subscriber Callback Function
@@ -126,6 +150,27 @@ class CozmoDriver:
     say_text = json.loads(msg.payload)
     self.robot.set_robot_volume(say_text['volume'])
     self.saying_now = self.robot.say_text(say_text['text'])
+
+  # cmd_vel function
+  def on_connect_cmd_vel(self, client, userdate, flags, respons_code):
+    self.cmd_vel_sub.subscribe('/cmd_vel')
+    print('Connected cmd_vel_sub !!')
+
+  def on_message_cmd_vel(self, client, userdata, msg):
+    print('Subscribed cmd_vel_sub !!')
+
+    cmd_vel = json.loads(msg.payload)
+    print(cmd_vel)
+
+    axle_length = 0.07  # 7cm
+    self.cmd_vel = cmd_vel
+    linear = cmd_vel['linear']['x']
+    angular = cmd_vel['angular']['z']
+    rv = linear + (angular * axle_length * 0.5)
+    lv = linear - (angular * axle_length * 0.5)
+
+    # convert to mm / s
+    self.wheel = {'lv': lv*1000, 'rv': rv*1000}
 
 
   ### Publisher Function
@@ -186,6 +231,43 @@ class CozmoDriver:
     self.camera_pub.publish('/camera_image', json.dumps(camera_image))
     print('Publish camera !!')
 
+  def publish_odom(self, update_rate):
+    
+    # set pose and orient
+    pose = self.robot.pose.position
+    orient = self.robot.pose_angle.radians
+    linear = 0
+    angular = 0
+
+    if self.cmd_vel != None:
+      # 現在の直進速度と回転速度を計算
+      delta_pose = self.last_pose - self.robot.pose
+      dist = np.sqrt(delta_pose.position.x**2
+                     + delta_pose.position.y**2
+                     + delta_pose.position.z**2) / 1000.0
+    
+      linear = dist * update_rate * np.sign(self.cmd_vel['linear']['x'])
+      angular = -delta_pose.rotation.angle_z.radians * update_rate
+      # 本当にpose.rotation？
+
+    odom = {
+      'timestamp': time.time(),
+      'pose': {
+        'position': {'x': pose.x, 'y': pose.y, 'z': pose.z},
+        'orientation': {'x': 0, 'y': 0, 'z': orient}
+      },
+      'twist': {
+        'linear': {'x': linear, 'y': 0, 'z': 0 },
+        'angular': { 'x': 0, 'y': 0, 'z': angular}
+      }
+    }
+     
+    # dict -> str on json & publish
+    self.odom_pub.publish('/odom', json.dumps(odom))
+    print('Publish Odometry !!')
+  
+    self.last_pose = self.robot.pose
+
 
 import asyncio
 import cozmo
@@ -196,4 +278,5 @@ async def cozmo_program(robot: cozmo.robot.Robot):
 
 if __name__ == '__main__':
   cozmo.run_program(cozmo_program)
+
   
