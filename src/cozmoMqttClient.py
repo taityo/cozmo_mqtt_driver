@@ -234,7 +234,7 @@ if __name__ == '__main__':
 
   cozmo_client.run()
   while True:
-    cozmo_client.publish_cmd_vel(1,0,0,0,0,1)
+    cozmo_client.publish_cmd_vel(0.2,0,0,0,0,-4)
     i = i + 1
     print('i :' + str(i))
 

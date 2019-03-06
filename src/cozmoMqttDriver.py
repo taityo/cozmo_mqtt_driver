@@ -14,6 +14,7 @@ class CozmoDriver:
     self.host = host
     self.port = port
     self.saying_now = None
+    self.wheel = {'rv': 0, 'lv': 0}
   
     # robot config
     self.robot.camera.image_stream_enabled = True
@@ -102,6 +103,8 @@ class CozmoDriver:
       self.publish_camera() # camera publish
       self.publish_odom() # odom publish
 
+      self.robot.drive_wheels(self.wheel['lv'], self.wheel['rv'])
+
       time.sleep(0.05)
 
 
@@ -152,6 +155,17 @@ class CozmoDriver:
 
     cmd_vel = json.loads(msg.payload)
     print(cmd_vel)
+
+    axle_length = 0.07  # 7cm
+    self.cmd_vel = cmd_vel
+    linear = cmd_vel['linear']['x']
+    angular = cmd_vel['angular']['z']
+    rv = linear + (angular * axle_length * 0.5)
+    lv = linear - (angular * axle_length * 0.5)
+
+    # convert to mm / s
+    self.wheel['lv'] = lv*1000
+    self.wheel['rv'] = rv*1000
 
 
   ### Publisher Function
@@ -213,6 +227,8 @@ class CozmoDriver:
     print('Publish camera !!')
 
   def publish_odom(self):
+
+    # 現在の直進速度と回転速度を計算
 
     odom = {
       'timestamp': 0,
