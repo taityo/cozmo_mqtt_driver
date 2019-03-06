@@ -170,7 +170,6 @@ class CozmoClient:
     self.callback_odom(odom)
 
 
-
   ### Publisher Function
  
   def publish_move_lift(self, speed):
@@ -204,11 +203,11 @@ class CozmoClient:
     self.head_pub.publish('/say_text', json.dumps(say_text))
     print('Publish saytext_pub')
 
-  def publish_cmd_vel(self, lin_x, lin_y, lin_z, ang_x, ang_y, ang_z):
+  def publish_cmd_vel(self, linear, angular):
     
     cmd_vel = {
-      'linear': { 'x': lin_x, 'y': lin_y, 'z': lin_z },
-      'angular': { 'x': ang_x, 'y': ang_y, 'z': ang_z}
+      'linear': { 'x': linear, 'y': 0, 'z': 0 },
+      'angular': { 'x': 0, 'y': 0, 'z': angular}
     }
     
     # dict -> str on json & publish
@@ -216,8 +215,6 @@ class CozmoClient:
     print('Publish cmd_vel_pub')
 
 
-num = 0.1
-i = 0
 
 def func(p):
 
@@ -230,13 +227,10 @@ if __name__ == '__main__':
   
   # callback function
   cozmo_client.callback_odom = func
-  #cozmo_client.callback_saytext = func
 
   cozmo_client.run()
   while True:
-    cozmo_client.publish_cmd_vel(0.2,0,0,0,0,-4)
-    i = i + 1
-    print('i :' + str(i))
+    cozmo_client.publish_cmd_vel(0.2,4)
 
     time.sleep(1)
 
